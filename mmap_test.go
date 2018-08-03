@@ -154,3 +154,58 @@ func TestLockUnlock(t *testing.T) {
 	m.Lock()
 	m.Unlock()
 }
+
+func TestReadUint64(t *testing.T) {
+	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	m, err := NewSharedFileMmap(f, 0, len(testData), syscall.SYS_READ)
+	if err != nil {
+		t.Errorf("error in mapping :: %v", err)
+	}
+	defer m.Unmap()
+
+	data := []byte{0x00, 0xe4, 0x0b, 0x54, 0x02, 0x00, 0x00, 0x00}
+
+	b, err := m.Write(data, 0)
+	if err != nil || b != 8 {
+		t.Errorf("error in write :: %v", err)
+	}
+
+	expectedNum := uint64(10000000000)
+	actualNum := m.ReadUint64(0)
+	if expectedNum != actualNum {
+		t.Errorf("Error in ReadUint64, expected: %d, actual: %d", expectedNum, actualNum)
+	}
+}
+
+func TestWriteUint64(t *testing.T) {
+	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	m, err := NewSharedFileMmap(f, 0, len(testData), syscall.SYS_READ)
+	if err != nil {
+		t.Errorf("error in mapping :: %v", err)
+	}
+	defer m.Unmap()
+
+	num := uint64(10000000000)
+	m.WriteUint64(0, num)
+
+	expectedSlice := []byte{0x00, 0xe4, 0x0b, 0x54, 0x02, 0x00, 0x00, 0x00}
+	actualSlice := make([]byte, 8)
+
+	n, err := m.Read(actualSlice, 0)
+	if err != nil || n != 8 {
+		t.Errorf("error in reading :: %v", err)
+	}
+	if !bytes.Equal(expectedSlice, actualSlice) {
+		t.Errorf("error in TestWriteUint64, expected: %v, actual: %v", expectedSlice, m.data)
+	}
+}

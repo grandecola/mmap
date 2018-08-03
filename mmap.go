@@ -1,6 +1,7 @@
 package mmap
 
 import (
+	"encoding/binary"
 	"errors"
 	"os"
 	"syscall"
@@ -66,4 +67,14 @@ func (m *Mmap) Write(src []byte, offset int) (int, error) {
 	}
 
 	return copy(m.data[offset:], src), nil
+}
+
+// ReadUint64 reads uint64 from offset
+func (m *Mmap) ReadUint64(offset int) uint64 {
+	return binary.LittleEndian.Uint64(m.data[offset : offset+8])
+}
+
+// WriteUint64 writes num at offset
+func (m *Mmap) WriteUint64(offset int, num uint64) {
+	binary.LittleEndian.PutUint64(m.data[offset:offset+8], num)
 }
