@@ -5,17 +5,6 @@ import (
 	"unsafe"
 )
 
-// Flush flushes the memory mapped region to disk
-func (m *Mmap) Flush(flags int) error {
-	_, _, err := syscall.Syscall(syscall.SYS_MSYNC,
-		uintptr(unsafe.Pointer(&m.data[0])), uintptr(len(m.data)), uintptr(flags))
-	if err != 0 {
-		return err
-	}
-
-	return nil
-}
-
 // Advise provides hints to kernel regarding the use of memory mapped region
 func (m *Mmap) Advise(advice int) error {
 	_, _, err := syscall.Syscall(syscall.SYS_MADVISE,
