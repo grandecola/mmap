@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	protPage = syscall.PROT_READ | syscall.PROT_WRITE
 	testData = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	testPath = "/tmp/m.txt"
 )
@@ -30,7 +31,7 @@ func TestUnmap(t *testing.T) {
 	}
 	defer f.Close()
 
-	m, err := NewSharedFileMmap(f, 0, len(testData), syscall.SYS_READ)
+	m, err := NewSharedFileMmap(f, 0, len(testData), protPage)
 	if err != nil {
 		t.Errorf("error in mapping :: %v", err)
 	}
@@ -47,7 +48,7 @@ func TestReadWrite(t *testing.T) {
 	}
 	defer f.Close()
 
-	m, err := NewSharedFileMmap(f, 0, len(testData), syscall.SYS_READ)
+	m, err := NewSharedFileMmap(f, 0, len(testData), protPage)
 	if err != nil {
 		t.Errorf("error in mapping :: %v", err)
 	}
@@ -129,7 +130,7 @@ func TestAdvise(t *testing.T) {
 	}
 	defer f.Close()
 
-	m, err := NewSharedFileMmap(f, 0, len(testData), syscall.SYS_READ)
+	m, err := NewSharedFileMmap(f, 0, len(testData), protPage)
 	if err != nil {
 		t.Errorf("error in mapping :: %v", err)
 	}
@@ -145,7 +146,7 @@ func TestLockUnlock(t *testing.T) {
 	}
 	defer f.Close()
 
-	m, err := NewSharedFileMmap(f, 0, len(testData), syscall.SYS_READ)
+	m, err := NewSharedFileMmap(f, 0, len(testData), protPage)
 	if err != nil {
 		t.Errorf("error in mapping :: %v", err)
 	}
@@ -162,7 +163,7 @@ func TestReadUint64(t *testing.T) {
 	}
 	defer f.Close()
 
-	m, err := NewSharedFileMmap(f, 0, len(testData), syscall.SYS_READ)
+	m, err := NewSharedFileMmap(f, 0, len(testData), protPage)
 	if err != nil {
 		t.Errorf("error in mapping :: %v", err)
 	}
@@ -189,7 +190,7 @@ func TestWriteUint64(t *testing.T) {
 	}
 	defer f.Close()
 
-	m, err := NewSharedFileMmap(f, 0, len(testData), syscall.SYS_READ)
+	m, err := NewSharedFileMmap(f, 0, len(testData), protPage)
 	if err != nil {
 		t.Errorf("error in mapping :: %v", err)
 	}
