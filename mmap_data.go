@@ -6,7 +6,13 @@ import (
 	"unsafe"
 )
 
-// Read copies data to dest slice from mapped region starting at given offset
+// Read copies data to dest slice from mapped region starting at
+// given offset and returns number of bytes copied to the dest slice.
+// There are two possibilities -
+//   Case 1: len(dest) >= (len(m.data) - offset)
+//        => copies (len(m.data) - offset) bytes to dest from mapped region
+//   Case 2: len(dest) < (len(m.data) - offset)
+//        => copies len(dest) bytes to dest from mapped region
 func (m *Mmap) Read(dest []byte, offset int) (int, error) {
 	if m.data == nil {
 		return 0, ErrUnmappedMemory
@@ -17,7 +23,13 @@ func (m *Mmap) Read(dest []byte, offset int) (int, error) {
 	return copy(dest, m.data[offset:]), nil
 }
 
-// Write copies data to mapped region from the src slice starting at given offset
+// Write copies data to mapped region from the src slice starting at
+// given offset and returns number of bytes copied to the mapped region.
+// There are two possibilities -
+//  Case 1: len(src) >= (len(m.data) - offset)
+//      => copies (len(m.data) - offset) bytes to the mapped region from src
+//  Case 2: len(src) < (len(m.data) - offset)
+//      => copies len(src) bytes to the mapped region from src
 func (m *Mmap) Write(src []byte, offset int) (int, error) {
 	if m.data == nil {
 		return 0, ErrUnmappedMemory
