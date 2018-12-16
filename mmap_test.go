@@ -42,15 +42,15 @@ func TestUnmap(t *testing.T) {
 }
 
 func TestReadWrite(t *testing.T) {
-	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
-	if err != nil {
-		panic(err)
+	f, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
+	if errFile != nil {
+		panic(errFile)
 	}
 	defer f.Close()
 
-	m, err := NewSharedFileMmap(f, 0, len(testData), protPage)
-	if err != nil {
-		t.Errorf("error in mapping :: %v", err)
+	m, errMmap := NewSharedFileMmap(f, 0, len(testData), protPage)
+	if errMmap != nil {
+		t.Errorf("error in mapping :: %v", errMmap)
 	}
 	defer m.Unmap()
 
@@ -86,13 +86,13 @@ func TestReadWrite(t *testing.T) {
 		t.Error(err)
 	}
 	m.Flush(syscall.SYS_SYNC)
-	f1, err := os.OpenFile(testPath, os.O_RDWR, 0644)
-	if err != nil {
-		panic(err)
+	f1, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
+	if errFile != nil {
+		panic(errFile)
 	}
-	fileData, err := ioutil.ReadAll(f1)
-	if err != nil {
-		t.Errorf("error in reading file: %s", err)
+	fileData, errFile := ioutil.ReadAll(f1)
+	if errFile != nil {
+		t.Errorf("error in reading file: %s", errFile)
 	}
 	f1.Close()
 	if !bytes.Equal(fileData, []byte("012345678aABCDEFGHIJKLMNOPQRSTUVWXYZ")) {
