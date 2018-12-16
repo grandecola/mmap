@@ -26,7 +26,7 @@ type Mmap struct {
 //              then all the mapped memory is accessible
 //    case 2 => if   file size <= memory region (offset + length)
 //              then from offset to file size memory region is accessible
-func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (*Mmap, error) {
+func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (IMmap, error) {
 	data, err := syscall.Mmap(int(f.Fd()), offset, length, prot, syscall.MAP_SHARED)
 	if err != nil {
 		return nil, err

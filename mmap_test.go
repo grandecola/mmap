@@ -207,6 +207,7 @@ func TestWriteUint64(t *testing.T) {
 		t.Errorf("error in reading :: %v", err)
 	}
 	if !bytes.Equal(expectedSlice, actualSlice) {
-		t.Errorf("error in TestWriteUint64, expected: %v, actual: %v", expectedSlice, m.data)
+		t.Errorf("error in TestWriteUint64, expected: %v, actual: %v",
+			expectedSlice, actualSlice)
 	}
 }
