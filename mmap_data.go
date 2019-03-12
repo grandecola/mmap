@@ -6,14 +6,14 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Read copies data to dest slice from mapped region starting at
+// ReadAt copies data to dest slice from mapped region starting at
 // given offset and returns number of bytes copied to the dest slice.
 // There are two possibilities -
 //   Case 1: len(dest) >= (len(m.data) - offset)
 //        => copies (len(m.data) - offset) bytes to dest from mapped region
 //   Case 2: len(dest) < (len(m.data) - offset)
 //        => copies len(dest) bytes to dest from mapped region
-func (m *Mmap) Read(dest []byte, offset int) (int, error) {
+func (m *Mmap) ReadAt(dest []byte, offset int64) (int, error) {
 	if m.data == nil {
 		return 0, ErrUnmappedMemory
 	} else if offset >= m.length || offset < 0 {
@@ -23,14 +23,14 @@ func (m *Mmap) Read(dest []byte, offset int) (int, error) {
 	return copy(dest, m.data[offset:]), nil
 }
 
-// Write copies data to mapped region from the src slice starting at
+// WriteAt copies data to mapped region from the src slice starting at
 // given offset and returns number of bytes copied to the mapped region.
 // There are two possibilities -
 //  Case 1: len(src) >= (len(m.data) - offset)
 //      => copies (len(m.data) - offset) bytes to the mapped region from src
 //  Case 2: len(src) < (len(m.data) - offset)
 //      => copies len(src) bytes to the mapped region from src
-func (m *Mmap) Write(src []byte, offset int) (int, error) {
+func (m *Mmap) WriteAt(src []byte, offset int64) (int, error) {
 	if m.data == nil {
 		return 0, ErrUnmappedMemory
 	} else if offset >= m.length || offset < 0 {
@@ -40,14 +40,27 @@ func (m *Mmap) Write(src []byte, offset int) (int, error) {
 	return copy(m.data[offset:], src), nil
 }
 
-// ReadUint64 reads uint64 from offset
-func (m *Mmap) ReadUint64(offset int) uint64 {
-	return binary.LittleEndian.Uint64(m.data[offset : offset+8])
+// ReadUint64At reads uint64 from offset
+func (m *Mmap) ReadUint64At(offset int64) (uint64, error) {
+	if m.data == nil {
+		return 0, ErrUnmappedMemory
+	} else if offset+8 > m.length || offset < 0 {
+		return 0, ErrIndexOutOfBound
+	}
+
+	return binary.LittleEndian.Uint64(m.data[offset : offset+8]), nil
 }
 
-// WriteUint64 writes num at offset
-func (m *Mmap) WriteUint64(offset int, num uint64) {
+// WriteUint64At writes num at offset
+func (m *Mmap) WriteUint64At(num uint64, offset int64) error {
+	if m.data == nil {
+		return ErrUnmappedMemory
+	} else if offset+8 > m.length || offset < 0 {
+		return ErrIndexOutOfBound
+	}
+
 	binary.LittleEndian.PutUint64(m.data[offset:offset+8], num)
+	return nil
 }
 
 // Flush flushes the memory mapped region to disk

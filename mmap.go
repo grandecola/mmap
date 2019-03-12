@@ -17,7 +17,7 @@ var (
 // Mmap provides abstraction around a memory mapped file
 type Mmap struct {
 	data   []byte
-	length int
+	length int64
 }
 
 // NewSharedFileMmap maps a file into memory starting at a given offset, for given length.
@@ -35,7 +35,7 @@ func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (IMmap, e
 
 	return &Mmap{
 		data:   data,
-		length: length,
+		length: int64(length),
 	}, nil
 }
 
