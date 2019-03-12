@@ -3,7 +3,8 @@ package mmap
 import (
 	"errors"
 	"os"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -27,7 +28,7 @@ type Mmap struct {
 //    case 2 => if   file size <= memory region (offset + length)
 //              then from offset to file size memory region is accessible
 func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (IMmap, error) {
-	data, err := syscall.Mmap(int(f.Fd()), offset, length, prot, syscall.MAP_SHARED)
+	data, err := unix.Mmap(int(f.Fd()), offset, length, prot, unix.MAP_SHARED)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (IMmap, e
 // Unmap unmaps the memory mapped file. An error will be returned
 // if any of the functions are called on Mmap after calling Unmap
 func (m *Mmap) Unmap() error {
-	err := syscall.Munmap(m.data)
+	err := unix.Munmap(m.data)
 	m.data = nil
 	return err
 }
