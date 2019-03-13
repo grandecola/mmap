@@ -13,11 +13,12 @@ import (
 //        => copies (len(m.data) - offset) bytes to dest from mapped region
 //   Case 2: len(dest) < (len(m.data) - offset)
 //        => copies len(dest) bytes to dest from mapped region
+// err is always nil, hence, can be ignored
 func (m *Mmap) ReadAt(dest []byte, offset int64) (int, error) {
 	if m.data == nil {
-		return 0, ErrUnmappedMemory
+		panic(ErrUnmappedMemory)
 	} else if offset >= m.length || offset < 0 {
-		return 0, ErrIndexOutOfBound
+		panic(ErrIndexOutOfBound)
 	}
 
 	return copy(dest, m.data[offset:]), nil
@@ -30,37 +31,37 @@ func (m *Mmap) ReadAt(dest []byte, offset int64) (int, error) {
 //      => copies (len(m.data) - offset) bytes to the mapped region from src
 //  Case 2: len(src) < (len(m.data) - offset)
 //      => copies len(src) bytes to the mapped region from src
+// err is always nil, hence, can be ignored
 func (m *Mmap) WriteAt(src []byte, offset int64) (int, error) {
 	if m.data == nil {
-		return 0, ErrUnmappedMemory
+		panic(ErrUnmappedMemory)
 	} else if offset >= m.length || offset < 0 {
-		return 0, ErrIndexOutOfBound
+		panic(ErrIndexOutOfBound)
 	}
 
 	return copy(m.data[offset:], src), nil
 }
 
 // ReadUint64At reads uint64 from offset
-func (m *Mmap) ReadUint64At(offset int64) (uint64, error) {
+func (m *Mmap) ReadUint64At(offset int64) uint64 {
 	if m.data == nil {
-		return 0, ErrUnmappedMemory
+		panic(ErrUnmappedMemory)
 	} else if offset+8 > m.length || offset < 0 {
-		return 0, ErrIndexOutOfBound
+		panic(ErrIndexOutOfBound)
 	}
 
-	return binary.LittleEndian.Uint64(m.data[offset : offset+8]), nil
+	return binary.LittleEndian.Uint64(m.data[offset : offset+8])
 }
 
 // WriteUint64At writes num at offset
-func (m *Mmap) WriteUint64At(num uint64, offset int64) error {
+func (m *Mmap) WriteUint64At(num uint64, offset int64) {
 	if m.data == nil {
-		return ErrUnmappedMemory
+		panic(ErrUnmappedMemory)
 	} else if offset+8 > m.length || offset < 0 {
-		return ErrIndexOutOfBound
+		panic(ErrIndexOutOfBound)
 	}
 
 	binary.LittleEndian.PutUint64(m.data[offset:offset+8], num)
-	return nil
 }
 
 // Flush flushes the memory mapped region to disk

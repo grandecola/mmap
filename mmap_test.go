@@ -96,9 +96,15 @@ func TestReadWrite(t *testing.T) {
 	}
 
 	// Read offset larger than size of mapped region
-	if _, err := m.ReadAt(data, 100); err != ErrIndexOutOfBound {
-		t.Fatalf("unexpected error in reading from mmaped region :: %v", err)
-	}
+	func() {
+		defer func() {
+			if err := recover(); err != ErrIndexOutOfBound {
+				t.Fatalf("unexpected error in reading from mmaped region :: %v", err)
+			}
+		}()
+
+		_, _ = m.ReadAt(data, 100)
+	}()
 
 	// Write
 	if _, err := m.WriteAt([]byte("a"), 9); err != nil {
@@ -143,9 +149,15 @@ func TestReadWrite(t *testing.T) {
 	}
 
 	// Write offset larger than size of mapped region
-	if _, err := m.WriteAt([]byte("a"), 100); err != ErrIndexOutOfBound {
-		t.Fatalf("unexpected error in writing to mmaped region :: %v", err)
-	}
+	func() {
+		defer func() {
+			if err := recover(); err != ErrIndexOutOfBound {
+				t.Fatalf("unexpected error in writing to mmaped region :: %v", err)
+			}
+		}()
+
+		_, _ = m.WriteAt([]byte("a"), 100)
+	}()
 }
 
 func TestAdvise(t *testing.T) {
@@ -233,9 +245,8 @@ func TestReadUint64At(t *testing.T) {
 	}
 
 	expectedNum := uint64(10000000000)
-	if actualNum, err := m.ReadUint64At(0); err != nil {
-		t.Fatalf("error in ReadUint64At :: %v", err)
-	} else if expectedNum != actualNum {
+	actualNum := m.ReadUint64At(0)
+	if expectedNum != actualNum {
 		t.Fatalf("Error in ReadUint64At, expected: %d, actual: %d", expectedNum, actualNum)
 	}
 }
@@ -262,9 +273,7 @@ func TestWriteUint64At(t *testing.T) {
 	}()
 
 	num := uint64(10000000000)
-	if err := m.WriteUint64At(num, 0); err != nil {
-		t.Fatalf("error in WriteUint64At :: %v", err)
-	}
+	m.WriteUint64At(num, 0)
 
 	expectedSlice := []byte{0x00, 0xe4, 0x0b, 0x54, 0x02, 0x00, 0x00, 0x00}
 	actualSlice := make([]byte, 8)
@@ -301,34 +310,68 @@ func TestFailScenarios(t *testing.T) {
 	}
 
 	num := uint64(10000000000)
-	if err := m.WriteUint64At(num, int64(len(testData)-4)); err != ErrIndexOutOfBound {
-		t.Fatalf("different error than expected in WriteUint64At :: %v", err)
-	}
-	if _, err := m.ReadUint64At(int64(len(testData) - 7)); err != ErrIndexOutOfBound {
-		t.Fatalf("different error than expected in WriteUint64At :: %v", err)
-	}
+	func() {
+		defer func() {
+			if err := recover(); err != ErrIndexOutOfBound {
+				t.Fatalf("different error than expected in WriteUint64At :: %v", err)
+			}
+		}()
 
-	if err := m.WriteUint64At(num, 0); err != nil {
-		t.Fatalf("error in WriteUint64At :: %v", err)
-	}
+		m.WriteUint64At(num, int64(len(testData)-4))
+	}()
+	func() {
+		defer func() {
+			if err := recover(); err != ErrIndexOutOfBound {
+				t.Fatalf("different error than expected in WriteUint64At :: %v", err)
+			}
+		}()
 
+		_ = m.ReadUint64At(int64(len(testData) - 7))
+	}()
+
+	m.WriteUint64At(num, 0)
 	if err := m.Unmap(); err != nil {
 		t.Fatalf("error in calling unmap :: %v", err)
 	}
 
 	buf := make([]byte, 8)
-	if _, err := m.ReadUint64At(0); err != ErrUnmappedMemory {
-		t.Fatalf("different error than expected in ReadUint64At :: %v", err)
-	}
-	if err := m.WriteUint64At(num, 0); err != ErrUnmappedMemory {
-		t.Fatalf("different error than expected in WriteUint64At :: %v", err)
-	}
-	if _, err := m.ReadAt(buf, 0); err != ErrUnmappedMemory {
-		t.Fatalf("different error than expected in ReadAt :: %v", err)
-	}
-	if _, err := m.WriteAt(buf, 0); err != ErrUnmappedMemory {
-		t.Fatalf("different error than expected in WriteAt :: %v", err)
-	}
+	func() {
+		defer func() {
+			if err := recover(); err != ErrUnmappedMemory {
+				t.Fatalf("different error than expected in ReadUint64At :: %v", err)
+			}
+		}()
+
+		_ = m.ReadUint64At(0)
+	}()
+	func() {
+		defer func() {
+			if err := recover(); err != ErrUnmappedMemory {
+				t.Fatalf("different error than expected in WriteUint64At :: %v", err)
+			}
+		}()
+
+		m.WriteUint64At(num, 0)
+	}()
+
+	func() {
+		defer func() {
+			if err := recover(); err != ErrUnmappedMemory {
+				t.Fatalf("different error than expected in ReadAt :: %v", err)
+			}
+		}()
+
+		_, _ = m.ReadAt(buf, 0)
+	}()
+	func() {
+		defer func() {
+			if err := recover(); err != ErrUnmappedMemory {
+				t.Fatalf("different error than expected in WriteAt :: %v", err)
+			}
+		}()
+
+		_, _ = m.WriteAt(buf, 0)
+	}()
 }
 
 func TestIOInterfaces(t *testing.T) {
