@@ -5,13 +5,12 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"syscall"
 	"testing"
-
-	"golang.org/x/sys/unix"
 )
 
 var (
-	protPage = unix.PROT_READ | unix.PROT_WRITE
+	protPage = syscall.PROT_READ | syscall.PROT_WRITE
 	testData = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	testPath = "/tmp/m.txt"
 )
@@ -110,7 +109,7 @@ func TestReadWrite(t *testing.T) {
 	if _, err := m.WriteAt([]byte("a"), 9); err != nil {
 		t.Fatalf("error in writing to mapped area :: %v", err)
 	}
-	if err := m.Flush(unix.MS_SYNC); err != nil {
+	if err := m.Flush(syscall.MS_SYNC); err != nil {
 		t.Fatalf("error in calling flush :: %v", err)
 	}
 	f1, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
@@ -130,7 +129,7 @@ func TestReadWrite(t *testing.T) {
 	if _, err := m.WriteAt([]byte("abc"), 34); err != nil {
 		t.Fatalf("error in writing to mapped region :: %v", err)
 	}
-	if err := m.Flush(unix.MS_SYNC); err != nil {
+	if err := m.Flush(syscall.MS_SYNC); err != nil {
 		t.Fatalf("error in flushing mapped region :: %v", err)
 	}
 	f2, err := os.OpenFile(testPath, os.O_RDWR, 0644)
@@ -181,7 +180,7 @@ func TestAdvise(t *testing.T) {
 		}
 	}()
 
-	if err := m.Advise(unix.MADV_SEQUENTIAL); err != nil {
+	if err := m.Advise(syscall.MADV_SEQUENTIAL); err != nil {
 		t.Fatalf("error in calling advise :: %v", err)
 	}
 }
@@ -411,7 +410,7 @@ func TestIOInterfaces(t *testing.T) {
 	if _, err := m.WriteAt(zipData, 0); err != nil {
 		t.Fatalf("error in writing to file :: %v", err)
 	}
-	if err := m.Flush(unix.MS_SYNC); err != nil {
+	if err := m.Flush(syscall.MS_SYNC); err != nil {
 		t.Fatalf("error in calling sync :: %v", err)
 	}
 

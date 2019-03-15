@@ -2,8 +2,8 @@ package mmap
 
 import (
 	"encoding/binary"
-
-	"golang.org/x/sys/unix"
+	"syscall"
+	"unsafe"
 )
 
 // ReadAt copies data to dest slice from mapped region starting at
@@ -66,5 +66,11 @@ func (m *Mmap) WriteUint64At(num uint64, offset int64) {
 
 // Flush flushes the memory mapped region to disk
 func (m *Mmap) Flush(flags int) error {
-	return unix.Msync(m.data, flags)
+	_, _, err := syscall.Syscall(syscall.SYS_MSYNC,
+		uintptr(unsafe.Pointer(&m.data[0])), uintptr(len(m.data)), uintptr(flags))
+	if err != 0 {
+		return err
+	}
+
+	return nil
 }
