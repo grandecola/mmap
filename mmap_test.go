@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -15,22 +16,31 @@ var (
 	testPath = "/tmp/m.txt"
 )
 
-func init() {
+func setup(t *testing.T) {
 	f, err := os.OpenFile(testPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		panic(err)
+		t.Fatalf("error in opening file :: %v", err)
 	}
 
 	if _, err := f.Write(testData); err != nil {
-		panic(err)
+		t.Fatalf("error in writing to file :: %v", err)
 	}
 
 	if err := f.Close(); err != nil {
-		panic(err)
+		t.Fatalf("error in closing file :: %v", err)
+	}
+}
+
+func tearDown(t *testing.T) {
+	if err := os.Remove(testPath); err != nil {
+		t.Fatalf("error in deleting file :: %v", err)
 	}
 }
 
 func TestUnmap(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatalf("error in opening file :: %v", err)
@@ -52,6 +62,9 @@ func TestUnmap(t *testing.T) {
 }
 
 func TestReadWrite(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
 	f, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if errFile != nil {
 		t.Fatalf("error in opening file :: %v", errFile)
@@ -120,7 +133,9 @@ func TestReadWrite(t *testing.T) {
 	if errFile != nil {
 		t.Fatalf("error in reading file :: %s", errFile)
 	}
-	f1.Close()
+	if err := f1.Close(); err != nil {
+		t.Fatalf("error in closing file :: %v", err)
+	}
 	if !bytes.Equal(fileData, []byte("012345678aABCDEFGHIJKLMNOPQRSTUVWXYZ")) {
 		t.Fatalf("no modification in file :: %v", string(fileData))
 	}
@@ -159,7 +174,155 @@ func TestReadWrite(t *testing.T) {
 	}()
 }
 
+func TestReadStringAt(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
+	f, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
+	if errFile != nil {
+		t.Fatalf("error in opening file :: %v", errFile)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			t.Fatalf("error in closing file :: %v", err)
+		}
+	}()
+
+	m, errMmap := NewSharedFileMmap(f, 0, len(testData), protPage)
+	if errMmap != nil {
+		t.Fatalf("error in mapping :: %v", errMmap)
+	}
+	defer func() {
+		if err := m.Unmap(); err != nil {
+			t.Fatalf("error in calling unmap :: %v", err)
+		}
+	}()
+
+	// Read
+	sb := &strings.Builder{}
+	sb.Grow(len(testData))
+	if n := m.ReadStringAt(sb, 0); n != len(testData) {
+		t.Fatalf("expected to read string of length %v, read of length %v", len(testData), n)
+	}
+	if string(testData) != sb.String() {
+		t.Fatalf("mapped data is not equal testData: %v, %v", sb.String(), string(testData))
+	}
+
+	// Read data smaller than the mapped region
+	sb.Reset()
+	sb.Grow(len(testData) - 2)
+	if n := m.ReadStringAt(sb, 0); n != len(testData)-2 {
+		t.Fatalf("expected to read string of length %v, read of length %v", len(testData), n)
+	}
+	expectedData := string(testData[:len(testData)-2])
+	if expectedData != sb.String() {
+		t.Fatalf("mapped data is not equal testData: %v, %v", sb.String(), expectedData)
+	}
+
+	// Read slice bigger than mapped region after offset
+	sb.Reset()
+	sb.Grow(len(testData) + 10)
+	if n := m.ReadStringAt(sb, 0); n != len(testData) {
+		t.Fatalf("expected to read string of length %v, read of length %v", len(testData), n)
+	}
+	if string(testData) != sb.String() {
+		t.Fatalf("mapped data is not equal testData: %v, %v", sb.String(), string(testData))
+	}
+
+	// Read offset larger than size of mapped region
+	func() {
+		defer func() {
+			if err := recover(); err != ErrIndexOutOfBound {
+				t.Fatalf("unexpected error in reading from mmaped region :: %v", err)
+			}
+		}()
+
+		sb.Reset()
+		sb.Grow(10)
+		_ = m.ReadStringAt(sb, 100)
+	}()
+}
+
+func TestWriteStringAt(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
+	f, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
+	if errFile != nil {
+		t.Fatalf("error in opening file :: %v", errFile)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			t.Fatalf("error in closing file :: %v", err)
+		}
+	}()
+
+	m, errMmap := NewSharedFileMmap(f, 0, len(testData), protPage)
+	if errMmap != nil {
+		t.Fatalf("error in mapping :: %v", errMmap)
+	}
+	defer func() {
+		if err := m.Unmap(); err != nil {
+			t.Fatalf("error in calling unmap :: %v", err)
+		}
+	}()
+
+	// Write
+	_ = m.WriteStringAt("a", 9)
+	if err := m.Flush(syscall.MS_SYNC); err != nil {
+		t.Fatalf("error in calling flush :: %v", err)
+	}
+	f1, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
+	if errFile != nil {
+		t.Fatalf("error in opening file :: %v", errFile)
+	}
+	fileData, errFile := ioutil.ReadAll(f1)
+	if errFile != nil {
+		t.Fatalf("error in reading file :: %s", errFile)
+	}
+	if err := f1.Close(); err != nil {
+		t.Fatalf("error in closing file :: %v", err)
+	}
+	if !bytes.Equal(fileData, []byte("012345678aABCDEFGHIJKLMNOPQRSTUVWXYZ")) {
+		t.Fatalf("no modification in file :: %v", string(fileData))
+	}
+
+	// Write slice bigger than mapped region after offset
+	_ = m.WriteStringAt("abc", 34)
+	if err := m.Flush(syscall.MS_SYNC); err != nil {
+		t.Fatalf("error in flushing mapped region :: %v", err)
+	}
+	f2, err := os.OpenFile(testPath, os.O_RDWR, 0644)
+	if err != nil {
+		t.Fatalf("error in opening file :: %v", err)
+	}
+	fileData, err = ioutil.ReadAll(f2)
+	if err != nil {
+		t.Fatalf("error in reading file :: %s", err)
+	}
+	if err := f2.Close(); err != nil {
+		t.Fatalf("error in closing file :: %s", err)
+	}
+	if !bytes.Equal(fileData, []byte("012345678aABCDEFGHIJKLMNOPQRSTUVWXab")) {
+		t.Fatalf("no modification in file :: %v", string(fileData))
+	}
+
+	// Write offset larger than size of mapped region
+	func() {
+		defer func() {
+			if err := recover(); err != ErrIndexOutOfBound {
+				t.Fatalf("unexpected error in writing to mmaped region :: %v", err)
+			}
+		}()
+
+		_ = m.WriteStringAt("a", 100)
+	}()
+}
+
 func TestAdvise(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatalf("error in opening file :: %v", err)
@@ -186,6 +349,9 @@ func TestAdvise(t *testing.T) {
 }
 
 func TestLockUnlock(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatalf("error in opening file :: %v", err)
@@ -215,6 +381,9 @@ func TestLockUnlock(t *testing.T) {
 }
 
 func TestReadUint64At(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatalf("error in opening file :: %v", err)
@@ -251,6 +420,9 @@ func TestReadUint64At(t *testing.T) {
 }
 
 func TestWriteUint64At(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatalf("error in opening file :: %v", err)
@@ -289,6 +461,9 @@ func TestWriteUint64At(t *testing.T) {
 }
 
 func TestFailScenarios(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatalf("error in opening file :: %v", err)
