@@ -2,11 +2,13 @@ language: go
 
 go:
   - 1.12
-  - 1.11
 
 os:
   - osx
   - linux
+
+env:
+  - GO111MODULE=on
 
 script:
   - go test -race -coverprofile=coverage.txt -covermode=atomic

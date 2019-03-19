@@ -2,7 +2,9 @@ package mmap
 
 import (
 	"errors"
+	"io"
 	"os"
+	"strings"
 	"syscall"
 )
 
@@ -13,8 +15,25 @@ var (
 	ErrIndexOutOfBound = errors.New("offset out of mapped region")
 )
 
-// Mmap provides abstraction around a memory mapped file
-type Mmap struct {
+// File provides an interface to a memory mapped file
+type File interface {
+	io.ReaderAt
+	io.WriterAt
+
+	ReadStringAt(dest *strings.Builder, offset int64) int
+	WriteStringAt(src string, offset int64) int
+	ReadUint64At(offset int64) uint64
+	WriteUint64At(num uint64, offset int64)
+
+	Lock() error
+	Unlock() error
+	Advise(advice int) error
+	Flush(flags int) error
+	Unmap() error
+}
+
+// mmapFile provides abstraction around a memory mapped file
+type mmapFile struct {
 	data   []byte
 	length int64
 }
@@ -26,13 +45,13 @@ type Mmap struct {
 //              then all the mapped memory is accessible
 //    case 2 => if   file size <= memory region (offset + length)
 //              then from offset to file size memory region is accessible
-func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (IMmap, error) {
+func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (File, error) {
 	data, err := syscall.Mmap(int(f.Fd()), offset, length, prot, syscall.MAP_SHARED)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Mmap{
+	return &mmapFile{
 		data:   data,
 		length: int64(length),
 	}, nil
@@ -40,7 +59,7 @@ func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (IMmap, e
 
 // Unmap unmaps the memory mapped file. An error will be returned
 // if any of the functions are called on Mmap after calling Unmap
-func (m *Mmap) Unmap() error {
+func (m *mmapFile) Unmap() error {
 	err := syscall.Munmap(m.data)
 	m.data = nil
 	return err
