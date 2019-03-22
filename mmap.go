@@ -32,8 +32,8 @@ type File interface {
 	Unmap() error
 }
 
-// mmapFile provides abstraction around a memory mapped file
-type mmapFile struct {
+// FileImpl provides abstraction around a memory mapped file
+type FileImpl struct {
 	data   []byte
 	length int64
 }
@@ -51,7 +51,7 @@ func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (File, er
 		return nil, err
 	}
 
-	return &mmapFile{
+	return &FileImpl{
 		data:   data,
 		length: int64(length),
 	}, nil
@@ -59,7 +59,7 @@ func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (File, er
 
 // Unmap unmaps the memory mapped file. An error will be returned
 // if any of the functions are called on Mmap after calling Unmap
-func (m *mmapFile) Unmap() error {
+func (m *FileImpl) Unmap() error {
 	err := syscall.Munmap(m.data)
 	m.data = nil
 	return err
