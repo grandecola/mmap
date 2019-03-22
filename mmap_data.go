@@ -60,7 +60,6 @@ func (m *FileImpl) ReadStringAt(dest *strings.Builder, offset int64) int {
 
 // WriteStringAt copies data to mapped region from the src string starting at
 // given offset and returns number of bytes copied to the mapped region.
-// See github.com/grandecola/mmap/#Mmap.WriteAt for more details.
 func (m *FileImpl) WriteStringAt(src string, offset int64) int {
 	m.boundaryChecks(offset, 1)
 	return copy(m.data[offset:], src)
