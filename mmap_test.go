@@ -597,3 +597,80 @@ func TestIOInterfaces(t *testing.T) {
 		t.Fatalf("zip file not read correctly, contains unexpected file")
 	}
 }
+
+func TestDirtyFlag(t *testing.T) {
+	setup(t)
+	defer tearDown(t)
+
+	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
+	if err != nil {
+		t.Fatalf("error in opening file :: %v", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			t.Fatalf("error in closing file :: %v", err)
+		}
+	}()
+
+	m, err := NewSharedFileMmap(f, 0, len(testData), protPage)
+	if err != nil {
+		t.Fatalf("error in mapping :: %v", err)
+	}
+	defer func() {
+		if err := m.Unmap(); err != nil {
+			t.Fatalf("error in calling unmap :: %v", err)
+		}
+	}()
+
+	m.WriteUint64At(0, 0)
+	if !m.dirty {
+		t.Fatalf("expected file to be dirty")
+	}
+	if err := m.Flush(syscall.MS_SYNC); err != nil {
+		t.Fatalf("error in calling flush :: %v", err)
+	}
+	if m.dirty {
+		t.Fatalf("expected file to be not dirty")
+	}
+	_ = m.ReadUint64At(0)
+	// No actual syscall here
+	if err := m.Flush(syscall.MS_SYNC); err != nil {
+		t.Fatalf("error in calling flush :: %v", err)
+	}
+	if m.dirty {
+		t.Fatalf("expected file to be not dirty")
+	}
+
+	_ = m.WriteStringAt("string", 0)
+	if !m.dirty {
+		t.Fatalf("expected file to be dirty")
+	}
+	if err := m.Flush(syscall.MS_SYNC); err != nil {
+		t.Fatalf("error in calling flush :: %v", err)
+	}
+	if m.dirty {
+		t.Fatalf("expected file to be not dirty")
+	}
+	sb := &strings.Builder{}
+	sb.Grow(len("string"))
+	_ = m.ReadStringAt(sb, 0)
+	if m.dirty {
+		t.Fatalf("expected file to be not dirty")
+	}
+
+	_, _ = m.WriteAt([]byte{1, 2}, 0)
+	if !m.dirty {
+		t.Fatalf("expected file to be dirty")
+	}
+	if err := m.Flush(syscall.MS_SYNC); err != nil {
+		t.Fatalf("error in calling flush :: %v", err)
+	}
+	if m.dirty {
+		t.Fatalf("expected file to be not dirty")
+	}
+	bs := make([]byte, 2)
+	_, _ = m.ReadAt(bs, 0)
+	if m.dirty {
+		t.Fatalf("expected file to be not dirty")
+	}
+}

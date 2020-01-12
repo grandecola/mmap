@@ -17,6 +17,7 @@ var (
 type File struct {
 	data   []byte
 	length int64
+	dirty  bool
 }
 
 // NewSharedFileMmap maps a file into memory starting at a given offset, for given length.
