@@ -1,5 +1,6 @@
 # mmap [![Build Status](https://travis-ci.com/grandecola/mmap.svg?branch=master)](https://travis-ci.com/grandecola/mmap) [![Go Report Card](https://goreportcard.com/badge/github.com/grandecola/mmap)](https://goreportcard.com/report/github.com/grandecola/mmap) [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT) [![GoDoc](https://godoc.org/github.com/grandecola/mmap?status.svg)](https://godoc.org/github.com/grandecola/mmap) [![codecov](https://codecov.io/gh/grandecola/mmap/branch/master/graph/badge.svg)](https://codecov.io/gh/grandecola/mmap)
-Interface for mmap syscall to provide safe and efficient access to memory
+Interface for mmap syscall to provide safe and efficient access to memory.
+`*mmap.File` satisfies both `io.ReaderAt` and `io.WriterAt` interfaces.
 
 **Only works for darwin OS, Linux and Little Endian 64 bit architectures.**
 
