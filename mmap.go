@@ -7,13 +7,13 @@ import (
 )
 
 var (
-	// ErrUnmappedMemory is returned when a function is called on unmapped memory
+	// ErrUnmappedMemory is returned when a function is called on unmapped memory.
 	ErrUnmappedMemory = errors.New("unmapped memory")
-	// ErrIndexOutOfBound is returned when given offset lies beyond the mapped region
+	// ErrIndexOutOfBound is returned when given offset lies beyond the mapped region.
 	ErrIndexOutOfBound = errors.New("offset out of mapped region")
 )
 
-// File provides abstraction around a memory mapped file
+// File provides abstraction around a memory mapped file.
 type File struct {
 	data   []byte
 	length int64
@@ -39,7 +39,7 @@ func NewSharedFileMmap(f *os.File, offset int64, length int, prot int) (*File, e
 }
 
 // Unmap unmaps the memory mapped file. An error will be returned
-// if any of the functions are called on Mmap after calling Unmap
+// if any of the functions are called on Mmap after calling Unmap.
 func (m *File) Unmap() error {
 	err := syscall.Munmap(m.data)
 	m.data = nil

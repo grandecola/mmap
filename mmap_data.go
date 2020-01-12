@@ -7,6 +7,8 @@ import (
 	"unsafe"
 )
 
+// boundaryChecks panics if m.data is nil or numBytes cannot be
+// read or written in the mapped file starting at given offset.
 func (m *File) boundaryChecks(offset, numBytes int64) {
 	if m.data == nil {
 		panic(ErrUnmappedMemory)
@@ -22,7 +24,7 @@ func (m *File) boundaryChecks(offset, numBytes int64) {
 //        => copies (m.length - offset) bytes to dest from mapped region
 //   Case 2: len(dest) < (m.length - offset)
 //        => copies len(dest) bytes to dest from mapped region
-// err is always nil, hence, can be ignored
+// err is always nil, hence, can be ignored.
 func (m *File) ReadAt(dest []byte, offset int64) (int, error) {
 	m.boundaryChecks(offset, 1)
 	return copy(dest, m.data[offset:]), nil
@@ -35,7 +37,7 @@ func (m *File) ReadAt(dest []byte, offset int64) (int, error) {
 //      => copies (m.length - offset) bytes to the mapped region from src
 //  Case 2: len(src) < (m.length - offset)
 //      => copies len(src) bytes to the mapped region from src
-// err is always nil, hence, can be ignored
+// err is always nil, hence, can be ignored.
 func (m *File) WriteAt(src []byte, offset int64) (int, error) {
 	m.boundaryChecks(offset, 1)
 	return copy(m.data[offset:], src), nil
@@ -65,19 +67,19 @@ func (m *File) WriteStringAt(src string, offset int64) int {
 	return copy(m.data[offset:], src)
 }
 
-// ReadUint64At reads uint64 from offset
+// ReadUint64At reads uint64 from offset.
 func (m *File) ReadUint64At(offset int64) uint64 {
 	m.boundaryChecks(offset, 8)
 	return binary.LittleEndian.Uint64(m.data[offset : offset+8])
 }
 
-// WriteUint64At writes num at offset
+// WriteUint64At writes num at offset.
 func (m *File) WriteUint64At(num uint64, offset int64) {
 	m.boundaryChecks(offset, 8)
 	binary.LittleEndian.PutUint64(m.data[offset:offset+8], num)
 }
 
-// Flush flushes the memory mapped region to disk
+// Flush flushes the memory mapped region to disk.
 func (m *File) Flush(flags int) error {
 	_, _, err := syscall.Syscall(syscall.SYS_MSYNC,
 		uintptr(unsafe.Pointer(&m.data[0])), uintptr(m.length), uintptr(flags))
