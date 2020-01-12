@@ -40,6 +40,7 @@ func (m *File) ReadAt(dest []byte, offset int64) (int, error) {
 // err is always nil, hence, can be ignored.
 func (m *File) WriteAt(src []byte, offset int64) (int, error) {
 	m.boundaryChecks(offset, 1)
+	m.dirty = true
 	return copy(m.data[offset:], src), nil
 }
 
@@ -64,6 +65,7 @@ func (m *File) ReadStringAt(dest *strings.Builder, offset int64) int {
 // given offset and returns number of bytes copied to the mapped region.
 func (m *File) WriteStringAt(src string, offset int64) int {
 	m.boundaryChecks(offset, 1)
+	m.dirty = true
 	return copy(m.data[offset:], src)
 }
 
@@ -76,16 +78,23 @@ func (m *File) ReadUint64At(offset int64) uint64 {
 // WriteUint64At writes num at offset.
 func (m *File) WriteUint64At(num uint64, offset int64) {
 	m.boundaryChecks(offset, 8)
+	m.dirty = true
 	binary.LittleEndian.PutUint64(m.data[offset:offset+8], num)
 }
 
-// Flush flushes the memory mapped region to disk.
+// Flush flushes the memory mapped region to disk. Flush makes a
+// syscall only if the memory region is modified since the last flush.
 func (m *File) Flush(flags int) error {
+	if !m.dirty {
+		return nil
+	}
+
 	_, _, err := syscall.Syscall(syscall.SYS_MSYNC,
 		uintptr(unsafe.Pointer(&m.data[0])), uintptr(m.length), uintptr(flags))
 	if err != 0 {
 		return err
 	}
 
+	m.dirty = false
 	return nil
 }
