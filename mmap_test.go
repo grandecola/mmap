@@ -3,8 +3,9 @@ package mmap
 import (
 	"archive/zip"
 	"bytes"
-	"io/ioutil"
+	"io"
 	"os"
+	"path"
 	"strings"
 	"syscall"
 	"testing"
@@ -13,10 +14,11 @@ import (
 var (
 	protPage = syscall.PROT_READ | syscall.PROT_WRITE
 	testData = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	testPath = "/tmp/m.txt"
 )
 
-func setup(t *testing.T) {
+func setup(t *testing.T, testPath string) {
+	t.Helper()
+
 	f, err := os.OpenFile(testPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		t.Fatalf("error in opening file :: %v", err)
@@ -31,15 +33,11 @@ func setup(t *testing.T) {
 	}
 }
 
-func tearDown(t *testing.T) {
-	if err := os.Remove(testPath); err != nil {
-		t.Fatalf("error in deleting file :: %v", err)
-	}
-}
-
 func TestUnmap(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -62,8 +60,10 @@ func TestUnmap(t *testing.T) {
 }
 
 func TestReadWrite(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if errFile != nil {
@@ -129,7 +129,7 @@ func TestReadWrite(t *testing.T) {
 	if errFile != nil {
 		t.Fatalf("error in opening file :: %v", errFile)
 	}
-	fileData, errFile := ioutil.ReadAll(f1)
+	fileData, errFile := io.ReadAll(f1)
 	if errFile != nil {
 		t.Fatalf("error in reading file :: %s", errFile)
 	}
@@ -151,7 +151,7 @@ func TestReadWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in opening file :: %v", err)
 	}
-	fileData, err = ioutil.ReadAll(f2)
+	fileData, err = io.ReadAll(f2)
 	if err != nil {
 		t.Fatalf("error in reading file :: %s", err)
 	}
@@ -175,8 +175,10 @@ func TestReadWrite(t *testing.T) {
 }
 
 func TestReadStringAt(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if errFile != nil {
@@ -201,7 +203,7 @@ func TestReadStringAt(t *testing.T) {
 	// Read
 	sb := &strings.Builder{}
 	sb.Grow(len(testData))
-	if n := m.ReadStringAt(sb, 0); n != len(testData) {
+	if n := m.ReadStringAt(sb, 0, int64(len(testData))); n != len(testData) {
 		t.Fatalf("expected to read string of length %v, read of length %v", len(testData), n)
 	}
 	if string(testData) != sb.String() {
@@ -210,9 +212,10 @@ func TestReadStringAt(t *testing.T) {
 
 	// Read data smaller than the mapped region
 	sb.Reset()
-	sb.Grow(len(testData) - 2)
-	if n := m.ReadStringAt(sb, 0); n != len(testData)-2 {
-		t.Fatalf("expected to read string of length %v, read of length %v", len(testData), n)
+	dataLen := len(testData) - 2
+	sb.Grow(dataLen)
+	if n := m.ReadStringAt(sb, 0, int64(dataLen)); n != dataLen {
+		t.Fatalf("expected to read string of length %v, read of length %v", dataLen, n)
 	}
 	expectedData := string(testData[:len(testData)-2])
 	if expectedData != sb.String() {
@@ -222,7 +225,7 @@ func TestReadStringAt(t *testing.T) {
 	// Read slice bigger than mapped region after offset
 	sb.Reset()
 	sb.Grow(len(testData) + 10)
-	if n := m.ReadStringAt(sb, 0); n != len(testData) {
+	if n := m.ReadStringAt(sb, 0, int64(len(testData))); n != len(testData) {
 		t.Fatalf("expected to read string of length %v, read of length %v", len(testData), n)
 	}
 	if string(testData) != sb.String() {
@@ -239,13 +242,15 @@ func TestReadStringAt(t *testing.T) {
 
 		sb.Reset()
 		sb.Grow(10)
-		_ = m.ReadStringAt(sb, 100)
+		_ = m.ReadStringAt(sb, 100, 10)
 	}()
 }
 
 func TestWriteStringAt(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, errFile := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if errFile != nil {
@@ -276,7 +281,7 @@ func TestWriteStringAt(t *testing.T) {
 	if errFile != nil {
 		t.Fatalf("error in opening file :: %v", errFile)
 	}
-	fileData, errFile := ioutil.ReadAll(f1)
+	fileData, errFile := io.ReadAll(f1)
 	if errFile != nil {
 		t.Fatalf("error in reading file :: %s", errFile)
 	}
@@ -296,7 +301,7 @@ func TestWriteStringAt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in opening file :: %v", err)
 	}
-	fileData, err = ioutil.ReadAll(f2)
+	fileData, err = io.ReadAll(f2)
 	if err != nil {
 		t.Fatalf("error in reading file :: %s", err)
 	}
@@ -320,8 +325,10 @@ func TestWriteStringAt(t *testing.T) {
 }
 
 func TestAdvise(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -349,8 +356,10 @@ func TestAdvise(t *testing.T) {
 }
 
 func TestLockUnlock(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -381,8 +390,10 @@ func TestLockUnlock(t *testing.T) {
 }
 
 func TestReadUint64At(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -420,8 +431,10 @@ func TestReadUint64At(t *testing.T) {
 }
 
 func TestWriteUint64At(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -461,8 +474,10 @@ func TestWriteUint64At(t *testing.T) {
 }
 
 func TestFailScenarios(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -549,7 +564,9 @@ func TestFailScenarios(t *testing.T) {
 }
 
 func TestIOInterfaces(t *testing.T) {
-	fileName := "/tmp/io.zip"
+	t.Parallel()
+
+	fileName := path.Join(t.TempDir(), "io.zip")
 	zipData := append([]byte{80, 75, 05, 06}, bytes.Repeat([]byte{0}, 18)...)
 	fileSize := len(zipData)
 
@@ -560,11 +577,6 @@ func TestIOInterfaces(t *testing.T) {
 	defer func() {
 		if err := f.Close(); err != nil {
 			t.Fatalf("error in closing file :: %v", err)
-		}
-	}()
-	defer func() {
-		if err := os.Remove(fileName); err != nil {
-			t.Fatalf("error in removing file :: %v", err)
 		}
 	}()
 
@@ -599,8 +611,10 @@ func TestIOInterfaces(t *testing.T) {
 }
 
 func TestDirtyFlag(t *testing.T) {
-	setup(t)
-	defer tearDown(t)
+	t.Parallel()
+
+	testPath := path.Join(t.TempDir(), "m.txt")
+	setup(t, testPath)
 
 	f, err := os.OpenFile(testPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -653,7 +667,7 @@ func TestDirtyFlag(t *testing.T) {
 	}
 	sb := &strings.Builder{}
 	sb.Grow(len("string"))
-	_ = m.ReadStringAt(sb, 0)
+	_ = m.ReadStringAt(sb, 0, 6)
 	if m.dirty {
 		t.Fatalf("expected file to be not dirty")
 	}
