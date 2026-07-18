@@ -32,7 +32,7 @@ linters:
     - godox
     - goheader
     - gomoddirectives
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
     - gosmopolitan
@@ -86,6 +86,9 @@ linters:
     - wastedassign
     - zerologlint
   settings:
+    gosec:
+      excludes:
+        - G115 # integer overflow conversion; noisy false positives on syscall casts
     lll:
       line-length: 120
   exclusions:
